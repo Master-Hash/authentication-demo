@@ -8,15 +8,6 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-function fail() {
-  return new Response(null, {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Secure Page", charset="UTF-8"',
-    },
-  });
-}
-
 export const headers: HeadersFunction = ({
   errorHeaders,
 }) => {
@@ -28,23 +19,37 @@ export const loader: LoaderFunction = ({
   request,
 }) => {
   const auth = request.headers.get("Authorization");
-  const [scheme, credentials] = (auth || "").split(" ");
+  if (!auth) throw new Response(null, {
+    status: 401,
+    headers: {
+      "WWW-Authenticate": 'Basic realm="Secure Page", charset="UTF-8"',
+    },
+  });
+
+  const [scheme, credentials] = (auth).split(" ");
 
   try {
+    if (!credentials || scheme !== "Basic") throw new Error();
     const [username, password] = atob(credentials).split(":");
 
-    if (!auth || scheme !== "Basic") {
-      throw fail();
-    }
-    else if (username !== import.meta.env.VITE_USERNAME || password !== import.meta.env.VITE_PASSWORD) {
-      throw fail();
+    if (username !== import.meta.env.VITE_USERNAME || password !== import.meta.env.VITE_PASSWORD) {
+      throw new Response(null, {
+        status: 401,
+        headers: {
+          "WWW-Authenticate": 'Basic realm="Secure Page", charset="UTF-8"',
+        },
+      });
     }
 
     else return {};
   }
 
   catch (e) {
-    throw fail();
+    if (e instanceof Error) throw new Response(null, {
+      status: 400,
+    });
+
+    else throw e;
   }
 };
 
